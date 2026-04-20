@@ -3,7 +3,9 @@ import pandas as pd
 import streamlit as st
 import requests
 import os
+import matplotlib.pyplot as plt
 from data_utils import get_data_summary
+from Chatbot import ask_llm, generate_code
 
 
 st.set_page_config(
@@ -26,41 +28,44 @@ st.write(f"Shape = {data.shape}")
 st.divider()
 st.subheader("Data Overview")
 st.write(data.describe())
-st.write(data.isnull().sum())
 st.write(data.dtypes)
+
+
+#Auto insights
+st.divider()
+st.subheader("Auto Insights")
+if "insights" not in st.session_state:
+    st.session_state.insights = ask_llm("Give me 5 key insights...", get_data_summary(data), [])
+    st.write(st.session_state.insights)
+
 
 #LLM part - fun yayay
 st.divider()
 st.subheader("Ask your data anything")
 
-
 user_input = st.chat_input()
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 
-api_key = os.environ.get("GROQ_API_KEY")
-url = "https://api.groq.com/openai/v1/chat/completions"
 
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
 
-Ole = {
-    "Authorization":  f"Bearer {api_key}",
-    "Content-Type": "application/json"
-}
-chat = {
-    "model": "llama-3.1-8b-instant",
-    "messages": [
-        {"role": "system", "content": "You are a data analyst assistant. Here is the dataset summary: " + get_data_summary(data)}
-    ]
-}
+chart = st.checkbox("Generate chart")
+    
 
 if user_input:
-    
-    with st.chat_message("User"):
-        st.write(user_input)
+    if chart:
+        chart_code = generate_code(user_input, get_data_summary(data))
+        fig, ax = plt.subplots()
+        exec(chart_code, {"df": data, "plt": plt, "ax": ax})
+        st.pyplot(fig)
+    else:
+        response = ask_llm(user_input, get_data_summary(data),st.session_state.messages)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.rerun()
 
-    chat["messages"].append({"role": "user", "content": user_input })
 
-    post = requests.post(url, headers=Ole, json=chat)
-    with st.chat_message("assistant"):
-        st.write(post.json()["choices"][0]["message"]["content"])
-
-    chat["messages"].append({"role": "assistant", "content":post.json()["choices"][0]["message"]["content"]})
