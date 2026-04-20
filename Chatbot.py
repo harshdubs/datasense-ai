@@ -1,10 +1,11 @@
 import pandas as pd
 import requests
 import os
+import streamlit as st
 
 
 def ask_llm(user_input, data_summary, message_history):
-    api_key = os.environ.get("GROQ_API_KEY")
+    api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
     url = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -27,7 +28,7 @@ def ask_llm(user_input, data_summary, message_history):
     return response
 
 def generate_code(user_input, data_summary):
-    api_key = os.environ.get("GROQ_API_KEY")
+    api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
     url = "https://api.groq.com/openai/v1/chat/completions"
 
 
