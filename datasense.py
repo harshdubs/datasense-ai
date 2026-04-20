@@ -3,6 +3,8 @@ import pandas as pd
 import streamlit as st
 import requests
 import os
+import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_data_summary
 from Chatbot import ask_llm, generate_code
@@ -36,7 +38,7 @@ st.divider()
 st.subheader("Auto Insights")
 if "insights" not in st.session_state:
     st.session_state.insights = ask_llm("Give me 5 key insights...", get_data_summary(data), [])
-    st.write(st.session_state.insights)
+st.write(st.session_state.insights)
 
 
 #LLM part - fun yayay
@@ -60,7 +62,7 @@ if user_input:
     if chart:
         chart_code = generate_code(user_input, get_data_summary(data))
         fig, ax = plt.subplots()
-        exec(chart_code, {"df": data, "plt": plt, "ax": ax})
+        exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
         st.pyplot(fig)
     else:
         response = ask_llm(user_input, get_data_summary(data),st.session_state.messages)
