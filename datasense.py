@@ -7,7 +7,7 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_data_summary
-from Chatbot import ask_llm, generate_code
+from Chatbot import ask_llm, generate_code, generate_questions
 
 
 st.set_page_config(
@@ -41,11 +41,22 @@ if "insights" not in st.session_state:
 st.write(st.session_state.insights)
 
 
+#Automated questions
+if "questions" not in st.session_state:
+    st.session_state.questions = generate_questions(get_data_summary(data))
+
+selected_question = None
+for question in st.session_state.questions:
+    if st.button(question):
+        st.session_state.selected_question = question
+
 #LLM part - fun yayay
 st.divider()
 st.subheader("Ask your data anything")
 
 user_input = st.chat_input()
+
+active_input = user_input or st.session_state.get("selected_question")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -58,9 +69,9 @@ for message in st.session_state.messages:
 chart = st.checkbox("Generate chart")
     
 
-if user_input:
+if active_input:
     if chart:
-        chart_code = generate_code(user_input, get_data_summary(data))
+        chart_code = generate_code(active_input, get_data_summary(data))
         fig, ax = plt.subplots()
         try:
             exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
@@ -71,9 +82,15 @@ if user_input:
         except Exception as e:
             st.error(f"Chart generation failed: {str(e)}")
     else:
-        response = ask_llm(user_input, get_data_summary(data),st.session_state.messages)
-        st.session_state.messages.append({"role": "user", "content": user_input})
+        response = ask_llm(active_input, get_data_summary(data),st.session_state.messages)
+        st.session_state.messages.append({"role": "user", "content": active_input})
         st.session_state.messages.append({"role": "assistant", "content": response})
+        st.session_state.selected_question = None
         st.rerun()
 
+        
 
+
+
+    
+    
