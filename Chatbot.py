@@ -69,4 +69,9 @@ def generate_questions(data_summary):
     post = requests.post(url, headers=Ole, json=chat)
        
     response = post.json()["choices"][0]["message"]["content"]
-    return json.loads(response)
+    # Strip markdown backticks if present
+    response = response.strip().strip("```json").strip("```").strip()       
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        return ["What are the key trends in this data?", "Which columns have missing values?", "What is the distribution of the main numeric column?", "Are there any outliers?", "What is the correlation between key variables?"]
