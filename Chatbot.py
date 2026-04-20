@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import os
 import streamlit as st
-
+import json
 
 def ask_llm(user_input, data_summary, message_history):
     api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
@@ -48,3 +48,25 @@ def generate_code(user_input, data_summary):
        
     response = post.json()["choices"][0]["message"]["content"]
     return response
+
+def generate_questions(data_summary):
+    api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
+    url = "https://api.groq.com/openai/v1/chat/completions"
+
+
+    Ole = {
+        "Authorization":  f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    chat = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {"role": "system", "content": "You are a data analyst. Given this dataset summary, generate 5 insightful questions a user might want to ask about this data. Return ONLY a JSON array of 5 strings, no explanation, no markdown." + data_summary}
+        ]
+    }
+
+    post = requests.post(url, headers=Ole, json=chat)
+       
+    response = post.json()["choices"][0]["message"]["content"]
+    return json.loads(response)
