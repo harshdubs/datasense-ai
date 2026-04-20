@@ -40,7 +40,7 @@ def generate_code(user_input, data_summary):
     chat = {
         "model": "llama-3.1-8b-instant",
         "messages": [
-            {"role": "system", "content": "You are a Python code generator. Return only executable Python code with no explanation, no markdown, no backticks. Use df as the dataframe variable and ax for plotting." + data_summary},
+            {"role": "system", "content": "You are a Python code generator. Return only executable Python code with no explanation, no markdown, no backticks. Use `df` as the dataframe variable, `ax` for plotting, and `plt` for matplotlib. Always plot directly on `ax` using ax.hist(), ax.plot(), sns.histplot(ax=ax) etc. Never create a new figure inside the code." + data_summary},
             {"role": "user", "content": user_input}
         ]
     }

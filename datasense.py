@@ -62,8 +62,14 @@ if user_input:
     if chart:
         chart_code = generate_code(user_input, get_data_summary(data))
         fig, ax = plt.subplots()
-        exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
-        st.pyplot(fig)
+        try:
+            exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
+            if ax.has_data():
+                st.pyplot(fig)
+            else:
+                st.warning("Could not generate chart. The column may not exist or the query was unclear. Try rephrasing.")
+        except Exception as e:
+            st.error(f"Chart generation failed: {str(e)}")
     else:
         response = ask_llm(user_input, get_data_summary(data),st.session_state.messages)
         st.session_state.messages.append({"role": "user", "content": user_input})
