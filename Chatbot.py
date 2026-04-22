@@ -28,6 +28,7 @@ def smart_respond(user_input, data_summary, message_history, data):
     post = requests.post(url, headers=Ole, json=chat)
        
     response = post.json()["choices"][0]["message"]["content"]
+    print(repr(response))
     response = response.strip().strip("```json").strip("```").strip() 
     response = json.loads(response)
     if response['type'] == 'text':
