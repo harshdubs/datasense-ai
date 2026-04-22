@@ -63,7 +63,7 @@ def generate_questions(data_summary):
     chat = {
         "model": "llama-3.1-8b-instant",
         "messages": [
-            {"role": "system", "content": "You are a data analyst. Given this dataset summary, generate 5 insightful questions a user might want to ask about this data. Return ONLY a JSON array of 5 strings, no explanation, no markdown." + data_summary}
+            {"role": "system", "content": "You are a data analyst. Given this dataset summary, generate 5 insightful questions a user might want to ask about this data. return only 5 questions in plain numbered string, no explanation, no markdown." + data_summary}
         ]
     }
 
