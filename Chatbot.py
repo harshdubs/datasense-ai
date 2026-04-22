@@ -3,8 +3,11 @@ import requests
 import os
 import streamlit as st
 import json
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
 
-def ask_llm(user_input, data_summary, message_history):
+def smart_respond(user_input, data_summary, message_history, data):
     api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
     url = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -17,7 +20,7 @@ def ask_llm(user_input, data_summary, message_history):
     chat = {
         "model": "llama-3.1-8b-instant",
         "messages": [
-            {"role": "system", "content": "You are a data analyst assistant. Here is the dataset summary: " + data_summary}, *message_history,
+            {"role": "system", "content": " if the question requires computation, aggregation, visualization or statistics on the data, set type to 'code' and content to executable Python code using df. Otherwise set type to 'text'" + data_summary}, *message_history,
             {"role": "user", "content": user_input}
         ]
     }
@@ -25,29 +28,24 @@ def ask_llm(user_input, data_summary, message_history):
     post = requests.post(url, headers=Ole, json=chat)
        
     response = post.json()["choices"][0]["message"]["content"]
-    return response
+    response = response.strip().strip("```json").strip("```").strip() 
+    response = json.loads(response)
+    if response['type'] == 'text':
+        return response['content']
+    
+    elif response['type'] == 'code':
+        chart_code = response['content']
+        fig, ax = plt.subplots()
+        try:
+            exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
+            if ax.has_data():
+                st.pyplot(fig)
+            else:
+                st.warning("Could not generate chart. The column may not exist or the query was unclear. Try rephrasing.")
+        except Exception as e:
+            st.error(f"Chart generation failed: {str(e)}")
+    return response["content"]
 
-def generate_code(user_input, data_summary):
-    api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
-    url = "https://api.groq.com/openai/v1/chat/completions"
-
-
-    Ole = {
-        "Authorization":  f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    chat = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [
-            {"role": "system", "content": "You are a Python code generator. Return only executable Python code with no explanation, no markdown, no backticks. Use `df` as the dataframe variable, `ax` for plotting, and `plt` for matplotlib. Always plot directly on `ax` using ax.hist(), ax.plot(), sns.histplot(ax=ax) etc. Never create a new figure inside the code." + data_summary},
-            {"role": "user", "content": user_input}
-        ]
-    }
-    post = requests.post(url, headers=Ole, json=chat)
-       
-    response = post.json()["choices"][0]["message"]["content"]
-    return response
 
 def generate_questions(data_summary):
     api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")

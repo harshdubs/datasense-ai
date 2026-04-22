@@ -7,7 +7,7 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_data_summary
-from Chatbot import ask_llm, generate_code, generate_questions
+from Chatbot import smart_respond, generate_questions
 
 
 st.set_page_config(
@@ -37,7 +37,7 @@ st.write(data.dtypes)
 st.divider()
 st.subheader("Auto Insights")
 if "insights" not in st.session_state:
-    st.session_state.insights = ask_llm("Give me 5 key insights...", get_data_summary(data), [])
+    st.session_state.insights = smart_respond("Give me 5 key insights...", get_data_summary(data), [] ,data)
 st.write(st.session_state.insights)
 
 
@@ -66,27 +66,14 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-chart = st.checkbox("Generate chart")
     
 
 if active_input:
-    if chart:
-        chart_code = generate_code(active_input, get_data_summary(data))
-        fig, ax = plt.subplots()
-        try:
-            exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
-            if ax.has_data():
-                st.pyplot(fig)
-            else:
-                st.warning("Could not generate chart. The column may not exist or the query was unclear. Try rephrasing.")
-        except Exception as e:
-            st.error(f"Chart generation failed: {str(e)}")
-    else:
-        response = ask_llm(active_input, get_data_summary(data),st.session_state.messages)
-        st.session_state.messages.append({"role": "user", "content": active_input})
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        st.session_state.selected_question = None
-        st.rerun()
+    response = smart_respond(active_input, get_data_summary(data),st.session_state.messages,data)
+    st.session_state.messages.append({"role": "user", "content": active_input})
+    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.selected_question = None
+    st.rerun()
 
         
 
