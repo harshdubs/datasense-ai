@@ -20,7 +20,7 @@ def smart_respond(user_input, data_summary, message_history, data):
     chat = {
         "model": "llama-3.1-8b-instant",
         "messages": [
-            {"role": "system", "content": " if the question requires computation, aggregation, visualization or statistics on the data, set type to 'code' and content to executable Python code using df. Otherwise set type to 'text'" + data_summary}, *message_history,
+            {"role": "system", "content": "you are a data analyst assistant. You MUST always respond with ONLY a valid JSON object with exactly two fields: 'type' and 'content'. No other text, no markdown, no explanation outside the JSON. Dataset:" + data_summary}, *message_history,
             {"role": "user", "content": user_input}
         ]
     }
@@ -29,24 +29,27 @@ def smart_respond(user_input, data_summary, message_history, data):
        
     response = post.json()["choices"][0]["message"]["content"]
     print(repr(response))
-    response = response.strip().strip("```json").strip("```").strip() 
-    response = json.loads(response)
-    if response['type'] == 'text':
-        return response['content']
+    response = response.strip().strip("```json").strip("```").strip()       
+    try:
+        response = json.loads(response)
+        if response['type'] == 'text':
+            return response['content']
     
-    elif response['type'] == 'code':
-        chart_code = response['content']
-        fig, ax = plt.subplots()
-        try:
-            exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
-            if ax.has_data():
-                st.pyplot(fig)
-            else:
-                st.warning("Could not generate chart. The column may not exist or the query was unclear. Try rephrasing.")
-        except Exception as e:
-            st.error(f"Chart generation failed: {str(e)}")
-    return response["content"]
+        elif response['type'] == 'code':
+            chart_code = response['content']
+            fig, ax = plt.subplots()
+            try:
+                exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
+                if ax.has_data():
+                    st.pyplot(fig)
+                else:
+                    st.warning("Could not generate chart. The column may not exist or the query was unclear. Try rephrasing.")
+            except Exception as e:
+                st.error(f"Chart generation failed: {str(e)}")
+        return response["content"]
 
+    except json.JSONDecodeError:
+        return response
 
 def generate_questions(data_summary):
     api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
