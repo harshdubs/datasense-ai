@@ -18,9 +18,9 @@ def smart_respond(user_input, data_summary, message_history, data):
     }
 
     chat = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
-            {"role": "system", "content": "you are a data analyst assistant. You MUST always respond with ONLY a valid JSON object with exactly two fields: 'type' and 'content'. No other text, no markdown, no explanation outside the JSON. Dataset:" + data_summary}, *message_history,
+            {"role": "system", "content": "You are a data analyst assistant. You MUST always respond with ONLY a single valid JSON object with exactly two fields: 'type' and 'content'. Never return two JSON objects. No other text, no markdown, no explanation outside the JSON. 'type' must only be either 'code' or 'text', never anything else. When type is 'code', content must be pure executable Python only — no markdown, no comments, no ## headers, no explanations, no triple quotes. Use only valid JSON string formatting. IMPORTANT RULES FOR CHARTS: The dataframe is available as 'df'. You have access to: df, pd, plt, fig, ax, sns, np. ALWAYS plot on the provided 'ax' object (e.g. ax.plot(), ax.bar(), sns.barplot(ax=ax), df.plot(ax=ax)). NEVER call plt.show(). NEVER create new figures with plt.figure(). Use df.columns exactly as they appear. Dataset:" + data_summary}, *message_history,
             {"role": "user", "content": user_input}
         ]
     }
@@ -28,7 +28,10 @@ def smart_respond(user_input, data_summary, message_history, data):
     post = requests.post(url, headers=Ole, json=chat)
        
     response = post.json()["choices"][0]["message"]["content"]
-    response = response.strip().strip("```json").strip("```").strip()       
+    response = response.strip()
+    response = response.replace("```json", "").replace("```", "").strip()
+    response = response.replace('"""', '').replace("'''", "").strip()
+     
     try:
         response = json.loads(response)
         if response['type'] == 'text':
@@ -36,16 +39,22 @@ def smart_respond(user_input, data_summary, message_history, data):
     
         elif response['type'] == 'code':
             chart_code = response['content']
+            chart_code = chart_code.replace("plt.show()", "")
             fig, ax = plt.subplots()
             try:
-                exec(chart_code, {"df": data, "plt": plt, "ax": ax, "sns": sns, "np": np})
-                if ax.has_data():
-                    st.pyplot(fig)
+                exec(chart_code, {"df": data, "pd": pd, "plt": plt, "fig": fig, "ax": ax, "sns": sns, "np": np})
+                
+                current_fig = plt.gcf()
+                if current_fig.get_axes():
+                    return current_fig
+                elif ax.has_data():
+                    return fig
                 else:
                     st.warning("Could not generate chart. The column may not exist or the query was unclear. Try rephrasing.")
+                    return "Could not generate chart, try rephrasing."
             except Exception as e:
                 st.error(f"Chart generation failed: {str(e)}")
-        return response["content"]
+                return f"Chart generation failed: {str(e)}"
 
     except json.JSONDecodeError:
         return response
@@ -61,7 +70,7 @@ def generate_questions(data_summary):
     }
 
     chat = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": "You are a data analyst. Given this dataset summary, generate 5 insightful questions a user might want to ask about this data. return only 5 questions in plain numbered string, no explanation, no markdown." + data_summary}
         ]
@@ -76,3 +85,25 @@ def generate_questions(data_summary):
         return json.loads(response)
     except json.JSONDecodeError:
         return ["What are the key trends in this data?", "Which columns have missing values?", "What is the distribution of the main numeric column?", "Are there any outliers?", "What is the correlation between key variables?"]
+    
+def get_insights(user_input, data_summary):
+    api_key = os.environ.get("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
+    url = "https://api.groq.com/openai/v1/chat/completions"
+
+
+    Ole = {
+        "Authorization":  f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    chat = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": "you are a data analyst assistant. return plain text insights, no JSON. Dataset:" + data_summary},
+            {"role": "user", "content": user_input}
+        ]
+    }
+    post = requests.post(url, headers=Ole, json=chat)
+       
+    response = post.json()["choices"][0]["message"]["content"]
+    return response

@@ -7,7 +7,8 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_data_summary
-from Chatbot import smart_respond, generate_questions
+from Chatbot import smart_respond, generate_questions, get_insights  
+
 
 
 st.set_page_config(
@@ -35,18 +36,20 @@ st.write(data.dtypes)
 
 #Auto insights
 st.divider()
-st.subheader("Auto Insights")
-if "insights" not in st.session_state:
-    st.session_state.insights = smart_respond("Give me 5 key insights...", get_data_summary(data), [] ,data)
-st.write(st.session_state.insights)
+st.subheader("Auto Insights")   
+
+#insights
+if f"insights_{file.name}" not in st.session_state:
+    st.session_state[f"insights_{file.name}"] = get_insights("Give me 5 key insights...", get_data_summary(data))
+st.write(st.session_state[f"insights_{file.name}"])
 
 
 #Automated questions
-if "questions" not in st.session_state:
-    st.session_state.questions = generate_questions(get_data_summary(data))
+if f"questions_{file.name}" not in st.session_state:
+    st.session_state[f"questions_{file.name}"] = generate_questions(get_data_summary(data))
 
 selected_question = None
-for question in st.session_state.questions:
+for question in st.session_state[f"questions_{file.name}"]:
     if st.button(question):
         st.session_state.selected_question = question
 
@@ -63,15 +66,23 @@ if "messages" not in st.session_state:
 
 
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
+    if message["content"] == "CHART":
+        st.pyplot(message["figure"])
+    else:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
 
     
 
 if active_input:
-    response = smart_respond(active_input, get_data_summary(data),st.session_state.messages,data)
-    st.session_state.messages.append({"role": "user", "content": active_input})
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    response = smart_respond(active_input, get_data_summary(data), st.session_state.messages, data)
+    if isinstance(response, str):
+        st.session_state.messages.append({"role": "user", "content": active_input})
+        st.session_state.messages.append({"role": "assistant", "content": response})
+    else:
+        st.pyplot(response)
+        st.session_state.messages.append({"role": "user", "content": active_input})
+        st.session_state.messages.append({"role": "assistant", "content": "CHART", "figure": response})
     st.session_state.selected_question = None
     st.rerun()
 
